@@ -16,6 +16,14 @@ public class Lotto {
 			Arrays.sort(set);
 			generate(k,6,"");
 
+			/*nt maskLast = (1<<k)-1;
+			int mask=Integer.parseInt("111111",2);
+			while(mask<=maskLast){
+				if(Integer.bitCount(mask)==6){
+					printSet(mask);
+				}
+				mask++;
+			}*/
 			k=in.nextInt();
 			if(k!=0)
 				System.out.println();
