@@ -8,12 +8,13 @@ public class AntimatterRayClearcutting {
 		Scanner in = new Scanner(System.in);
 		Arrays.fill(memo, -1);
 		for(int i=0; i<16; i++){
-			memo[1<<i] = 1;
+			memo[1<<i] = 1; // cost to cut a single tree is one
 		}
 		memo[0] = 0;
 		
 		int sets = in.nextInt();
 		for(int i=1; i<=sets; i++){
+			if(i>1) System.out.println("\n");
 			n = in.nextInt();
 			m = in.nextInt();
 			
@@ -24,8 +25,9 @@ public class AntimatterRayClearcutting {
 				pts[j] = new Point(in.nextDouble(),in.nextDouble());
 			}
 			
-			findCut(m);
-			System.out.println(memo[0]);
+			//findCut(m);
+			System.out.printf("Case #%d:\n", i);
+			System.out.print(findCut(m));
 		}
 	}
 	
