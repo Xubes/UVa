@@ -2,33 +2,29 @@ import java.util.*;
 import java.io.*;
 public class Monocycle {
 
-	final static long NA = Integer.MAX_VALUE;
-	final static int green=0, black=1, red=2, blue=3, white=4, colors = 5;
-	static final int north=0, east=1, south=2, west=3, dirs = 4;
-	static final int[][] dirOffsets = {{-1,0},{0,1},{1,0},{0,-1}};
+	final static long NA = Integer.MAX_VALUE; // out "infinite"
+	final static int green=0, black=1, red=2, blue=3, white=4, colors = 5; // associate colors to numbers
+	static final int north=0, east=1, south=2, west=3, dirs = 4;	// associate directions to numbers
+	static final int[][] dirOffsets = {{-1,0},{0,1},{1,0},{0,-1}};	// direction vectors giving the change in row and column when moving forward in the respective direction
 	
-	static int rows=25,cols=25;
+	static int rows=25,cols=25;	// globals vars row and column which will be used to check out of bounds errors
 	
 	public static void main(String[] args) throws IOException {
 		BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 		int set = 0;
 		
-		String[] szdata = in.readLine().trim().split(" ");
-		rows = Integer.parseInt(szdata[0]);
-		cols = Integer.parseInt(szdata[1]);
-		while(!(rows==0 && cols==0)){
-			set++;
-			//set proper spacing between problem sets.
-			if(set>1){
-				System.out.println("\n");
-			}
-			System.out.println("Case #" + set);
-			
+		String nextIn;
+		while((nextIn = in.readLine())!=null){
+			String[] toks = nextIn.trim().split(" ");
+			rows = Integer.parseInt(toks[0]);
+			cols = Integer.parseInt(toks[1]);
+			if(rows==0 && cols==0)
+				break;
 			// create a hashmap for the nodes we will use
 			HashMap<String,Node> stateSpace = new HashMap<String,Node>(rows*cols*colors*dirs);
 			// we will need the src and dest states for our shortest path algo
-			Node src = null;
 			ArrayList<Node> dests = new ArrayList<Node>();
+			ArrayList<Node> srcs = new ArrayList<Node>();
 			
 			// process input
 			for(int i=0; i<rows; i++){
@@ -46,133 +42,110 @@ public class Monocycle {
 						}
 						if(c=='T'){
 							String prefix = i+","+j+","+green+",";
-							for(int dir=north; dir<=west; dir++){
+							for(int dir=north; dir<dirs; dir++){
 								dests.add((stateSpace.get(prefix+dir))); // fetch destination state nodes
 							}
 						}
-						if(c=='S') src = stateSpace.get(i+","+j+","+green+","+north); // fetch source state-node
+						if(c=='S'){
+							Node src = stateSpace.get(i+","+j+","+green+","+north); // fetch source state-node
+							srcs.add(src);
+						}
 					}
 				}
 			}
-			
-			/* We have all our nodes, now we need to make the edges by setting the adjacency lists.
-			 */
-			addEdges(stateSpace);
-			
-			// now call dijkstras sssp algorithm
-			long sol = (src!=null)? dijk(stateSpace.values(),src,dests) : NA;
 
-			if(sol>=0 && sol<NA){
-				System.out.printf("minimum time = %d sec",sol);
+			// add edges to our graph
+			addEdges(stateSpace);
+			// call bfs routine
+			long sol = bfs(srcs,dests);
+
+			set++;
+			if(set>1) System.out.println();
+			System.out.println("Case #" + set);
+			if(sol>0 && sol<NA){
+				System.out.printf("minimum time = %d sec\n",sol);
 			}
 			else{
-				System.out.print("destination not reachable");
+				System.out.println("destination not reachable");
 			}
-			szdata = in.readLine().trim().split(" ");
-			rows = Integer.parseInt(szdata[0]);
-			cols = Integer.parseInt(szdata[1]);
 		}
 
 	}
 	
-	// returns the minimum path length from src to one of the destination nodes
-	static long dijk(Collection<Node> states, Node src, ArrayList<Node> dest){
+	/* Returns the minimum path length from src to one of the destination nodes by performing a breadth-first search from src node.
+	 */
+	static long bfs(ArrayList<Node> srcs, ArrayList<Node> dest){
 		long minCost = NA;
-		src.setCost(0);
+		
 		PriorityQueue<Node> pq = new PriorityQueue<Node>();
-		pq.add(src);
+		for(Node n : srcs){
+			n.cost = 0;
+			pq.add(n);
+		}
 		
 		while(!pq.isEmpty()){
 			Node n = pq.poll();
-			if(n.cost>=NA)
-				continue;
-			n.visited = true;
-			for(Node neighbor : n.adj){
-				if(neighbor.visited)
-					continue;
+			for(Node nbor : n.adj){
 				long ncost = n.cost+1; // all edges are 1 so the cost from n to its neighbor is 1.
-				if(neighbor.cost>ncost){
-					neighbor.setCost(ncost);
-					if(dest.contains(neighbor) && neighbor.cost<minCost){
-						minCost = neighbor.cost;
+				if(nbor.cost>ncost){
+					nbor.cost = ncost;
+					pq.add(nbor);
+					if(dest.contains(nbor) && ncost<minCost){
+						minCost = ncost;
 					}
 				}
-
-				pq.add(neighbor);
 			}
 		}
 		return minCost;
 	}
 	
-	 /* For each node, we want:
-	  * 	- an edge to adjacent directions since we can rotate.
-	  * 	- an edge to an adjacent node on the grid formed by (row,col). This node is determined by the current direction & color.
-	  * We take advantage of our hashmapped nodes having keys which are the csv concatenations of each dimension.
-	  */
-	static void addEdges(HashMap<String,Node> all){
-		Collection<Node> nodes = all.values();
-		if(all.containsKey(" "));
-		for(Node n : nodes){
-			int r = n.row;
-			int c = n.col;
-			int clr = n.color;
-			int d = n.dir;
-			
-			
-			ArrayList<Node> neighs = new ArrayList<Node>();
-			ArrayList<String> keys = new ArrayList<String>();
-			
-			// add adjacent directions
-			keys.add(r+","+c+","+clr+","+(d-1)%dirs);
-			keys.add(r+","+c+","+clr+","+(d+1)%dirs);
-			
-			// calculate r,c,clr for adj
-			int ra = r+dirOffsets[d][0];
-			int ca = c+dirOffsets[d][1];
-			int clra = (clr+1)%colors;
-			keys.add(ra+ "," + ca + "," + clra+ "," + d);
-			for(String k : keys){
-				if(all.containsKey(k)) neighs.add(all.get(k));
+	/* Adds the three edges or each node in the map. */
+	static void addEdges(HashMap<String,Node> map){
+		for(Node n : map.values()){
+			Node[] neighbors = new Node[3];
+			String lkey = n.row+","+n.col+","+n.color+","+ ((n.dir+dirs-1)%dirs);	//turn left
+			String rkey = n.row+","+n.col+","+n.color+","+ ((n.dir+1)%dirs);	//turn right
+			String fkey = (n.row+dirOffsets[n.dir][0]) + "," +			//advance forward
+							((n.col+dirOffsets[n.dir][1])) + "," +
+							((n.color+1+colors)%colors) + "," + n.dir;
+			neighbors[0] = map.get(lkey);
+			neighbors[1] = map.get(rkey);
+			neighbors[2] = map.get(fkey);
+			for(Node nbor : neighbors){
+				if(nbor!=null){
+					n.adj.add(nbor);
+					if(n.equals(nbor)){
+						System.err.println("ERROR");
+					}
+				}
+				
 			}
-			n.setAdj(neighs);
+			
 		}
 	}
 }
 
-class Node implements Comparable<Node>{
-	boolean visited = false;
+
+class Node implements Comparable<Node> {
 	long cost; // build the sssp cost into the node so we don't have to keep track of another datastructure
 	int row,col,color,dir;
-	ArrayList<Node> adj; // list of neighbors
+	ArrayList<Node> adj;
 	public Node(int r, int c, int clr, int d){
 		row = r;
 		col = c;
 		color = clr;
 		dir = d;
-		cost = Integer.MAX_VALUE; // init to NA
 		adj = new ArrayList<Node>();
-	}
-	
-	public int compareTo(Node n){
-		long c = cost-n.cost;
-		return Long.signum(c);
-	}
-	
-	public void setCost(long nc){
-		cost = nc;
-	}
-	//sets the given ArrayList of nodes as the adj
-	public void setAdj(ArrayList<Node> nadj){
-		adj = nadj;
-	}
-	// adds a link to neighbor node to the adj map
-	public void addAdj(Node n){
-		if(!adj.contains(n))
-			adj.add(n);
+		cost = Integer.MAX_VALUE; // init to NA
 	}
 	
 	public String toString(){
 		return row+","+col+","+color+","+dir;
+	}
+	
+	/* Compare by cost variable.  Return a zero only if all variables match. */
+	public int compareTo(Node n){
+		return Long.signum(cost-n.cost);
 	}
 	
 }
